@@ -1,0 +1,18 @@
+### Register app
+POST http://localhost:7070/register
+Content-Type: application/x-www-form-urlencoded
+
+name=Test
+&uri=http://localhost:7071
+&redirect_success=http://localhost:7071/success
+&redirect_error=http://localhost:7071/error
+
+### Access authorization page
+GET http://localhost:7070/auth?response_type=code&client_id=client_5edfd43b0db573.88203718&scope[]=profile&state=test&redirect_uri=http://localhost:7071/success
+
+### Generate authorization code
+GET http://localhost:7070/auth-sucess?client_id=client_5edfd43b0db573.88203718&state=test
+
+
+### Generate access Token
+GET http://localhost:7070/token?code=5ee0b50e92e5f&grant_type=authorization_code&client_id=client_5edfd43b0db573.88203718&client_secret=e0a6a1f5c55fafd48cbcce2b7279d4029fad76f4&redirect_uri=http://localhost:7071/success
