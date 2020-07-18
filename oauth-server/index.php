@@ -1,82 +1,9 @@
 <?php
 
-/**
- * @param string $filename
- * @return array
- */
-function read_file(string $filename): array
-{
-    if (!file_exists($filename)) throw new \Exception($filename . " not found");
-    $data = file($filename);
-    return array_map(fn ($item) => unserialize($item), $data);
-}
-
-/**
- * @param array $data
- * @param string $filename
- * @return int
- */
-function write_file(array $data, string $filename): int
-{
-    $data = array_map(fn ($item) => serialize($item), $data);
-    return file_put_contents($filename, implode(PHP_EOL, $data));
-}
-
-/**
- * @param string $uri
- * @return false|array
- */
-function getApp(string $uri)
-{
-    $data = read_file('./data/app.data');
-    foreach ($data as $app) {
-        if ($app['uri'] === $uri) return $app;
-    }
-    return false;
-}
-
-/**
- * @param string $client_id
- * @return false|array
- */
-function getClientId(string $client_id)
-{
-    $data = read_file('./data/app.data');
-    foreach ($data as $app) {
-        if ($app['client_id'] === $client_id) return $app;
-    }
-    return false;
-}
-
-/**
- * @param string $client_id
- * @param string $code
- * @return false|array
- */
-function getCode(string $client_id, string $code)
-{
-    $data = read_file('./data/code.data');
-    foreach ($data as $app) {
-        if ($app['code'] === $code && $app['client_id'] === $client_id) return $app;
-    }
-    return false;
-}
-
-/**
- * @param string $token
- * @return false|array
- */
-function getToken(string $token)
-{
-    $data = read_file('./data/token.data');
-    foreach ($data as $app) {
-        if ($app['token'] === $token) return $app;
-    }
-    return false;
-}
 
 function register()
 {
+    $function = new Fonction();
     // Get client application data
     [
         "name" => $name, "uri" => $uri,
@@ -92,13 +19,13 @@ function register()
         $clientId = uniqid('client_', true);
 
         // Insert app data with the newly created credentials in the database
-        $data = read_file('./data/app.data');
+        $data = $function->read_file('./data/app.data');
         $data[] = [
             "name" => $name, "uri" => $uri,
             'redirect_success' => $redirect_success, 'redirect_error' => $redirect_error,
             'client_id' => $clientId, 'client_secret' => sha1($clientId)
         ];
-        write_file($data, './data/app.data');
+        $function->write_file($data, './data/app.data');
 
         // Return a well-formated response to the client with the newly created credentials
         http_response_code(201);
@@ -127,12 +54,13 @@ function register()
  */
 function auth()
 {
+    $function = new Fonction();
     [
         "response_type" => $code, "client_id" => $client_id,
         "scope" => $scope, "state" => $state,
         "redirect_uri" => $redirect_uri
     ] = $_GET;
-    if (false !== ($app = getClientID($client_id))) {
+    if (false !== ($app = $function->getClientID($client_id))) {
         http_response_code(200);
         echo "" . $app["name"] . "</br>";
         echo "" . $app["uri"] . "</br>";
@@ -145,6 +73,7 @@ function auth()
 
 function authSuccess()
 {
+    $function = new Fonction();
     [
         "client_id" => $client_id,
         "state" => $state,
@@ -153,29 +82,30 @@ function authSuccess()
     $code = uniqid();
     $expireDate = new DateTime('+ 15 seconds');
     // Save them into the database
-    $data = read_file('./data/code.data');
+    $data = $function->read_file('./data/code.data');
     $data[] =
         [
             "client_id" => $client_id,
             "code" => $code,
             "expireDate" => $expireDate
         ];
-    write_file($data, './data/code.data');
+        $function->write_file($data, './data/code.data');
     // Redirect to client success route
-    $app = getClientID($client_id);
+    $app = $function->getClientID($client_id);
     header("Location: {$app['redirect_success']}?state=$state&code=$code");
 }
 
 function exchangeAuthorizationCodeToToken(string $client_id, $code)
 {
+    $function = new Fonction();
     // Check if code exist and not expired
-    $code = getCode($client_id, $code);
+    $code = $function->getCode($client_id, $code);
     if (false !== $code && $code['expireDate'] > new DateTime()) {
         // Generate token and its expiration Date
         $token = uniqid("", true);
         $expireDate = new DateTime('+ 3600 seconds');
         // Save them into the database
-        $data = read_file('./data/token.data');
+        $data = $function->read_file('./data/token.data');
         $data[] =
             [
                 "token" => $token,
@@ -183,7 +113,7 @@ function exchangeAuthorizationCodeToToken(string $client_id, $code)
                 'user_id' => uniqid()
             ];
         $file = './data/token.data';
-        write_file($data, $file);
+        $function->write_file($data, $file);
         // Send token and expirationDate as a json response
         http_response_code(201);
         echo json_encode([
@@ -196,14 +126,16 @@ function exchangeAuthorizationCodeToToken(string $client_id, $code)
 }
 
 function exchangePasswordToToken(string $username, string $client_id, $password)
-{ // Mais du coup on récupère le password par où? C'est via un fichier? 
+{ 
+    $function = new Fonction();
+    // Mais du coup on récupère le password par où? C'est via un fichier? 
     // Check if code exist and not expired
     if ($username === "user" && $password === "password") {
         // Generate token and its expiration Date
         $token = uniqid("", true);
         $expireDate = new DateTime('+ 3600 seconds');
         // Save them into the database
-        $data = read_file('./data/token.data');
+        $data = $function->read_file('./data/token.data');
         $data[] =
             [
                 "token" => $token,
@@ -211,7 +143,7 @@ function exchangePasswordToToken(string $username, string $client_id, $password)
                 'user_id' => uniqid()
             ];
         $file = './data/token.data';
-        write_file($data, $file);
+        $function->write_file($data, $file);
         // Send token and expirationDate as a json response
         http_response_code(201);
         echo json_encode([
@@ -226,11 +158,12 @@ function exchangePasswordToToken(string $username, string $client_id, $password)
 
 function exchangeClientCredentialsToToken(string $client_secret, string $client_id)
 {
+    $function = new Fonction();
     // Generate token and its expiration Date
     $token = uniqid("", true);
     $expireDate = new DateTime('+ 3600 seconds');
     // Save them into the database
-    $data = read_file('./data/token_client.data');
+    $data = $function->read_file('./data/token_client.data');
     $data[] =
         [
             "token" => $token,
@@ -238,7 +171,7 @@ function exchangeClientCredentialsToToken(string $client_secret, string $client_
             'client_id' => $client_id
         ];
     $file = './data/token_client.data';
-    write_file($data, $file);
+    $function->write_file($data, $file);
     // Send token and expirationDate as a json response
     http_response_code(201);
     echo json_encode([
@@ -263,6 +196,7 @@ function exchangeClientCredentialsToToken(string $client_secret, string $client_
  */
 function token()
 {
+    $function = new Fonction();
     // Get request params
     [
         "grant_type" => $grant_type,
@@ -296,6 +230,7 @@ function token()
 
 function me()
 {
+    $function = new Fonction();
     ['Authorization' => $auth] = getallheaders();
     $token = str_replace('Bearer ', '', $auth);
     if (false !== ($token = getToken($token))) {
@@ -304,24 +239,4 @@ function me()
         http_response_code(401);
         echo "Token not found";
     }
-}
-
-// Router
-$route = strtok($_SERVER['REQUEST_URI'], '?');
-switch ($route) {
-    case '/register':
-        register();
-        break;
-    case '/auth':
-        auth();
-        break;
-    case '/auth-success':
-        authSuccess();
-        break;
-    case '/token':
-        token();
-        break;
-    case '/me':
-        me();
-        break;
 }
