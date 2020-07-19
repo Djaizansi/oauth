@@ -1,6 +1,7 @@
 <?php
 
-class SystemeProvider {
+class SystemeProvider
+{
 
 
     private function getToken(): ?string
@@ -18,12 +19,22 @@ class SystemeProvider {
             "grant_type" => "authorization_code"
         ];
 
-        if(in_array($this->data["name"], ["Github"])){
+        if (in_array($this->data["name"], ["Github"])) {
             $result = $this->callback($this->uriAuth, $params);
             $string = explode("&", $result, 2)[0];
             $access_token = explode("=", $string)[1];
-        }else{
-            $surl = "{$this->uriAuth}?".http_build_query($params);
+        } else {
+            $surl = "{$this->uriAuth}?" . http_build_query($params);
+            $result = json_decode(file_get_contents($surl), true);
+            ['access_token' => $access_token] = $result;
+        }
+
+        if (in_array($this->data["name"], ["Linkedin"])) {
+            $result = $this->callback($this->uriAuth, $params);
+            $string = explode("&", $result, 2)[0];
+            $access_token = explode("=", $string)[1];
+        } else {
+            $surl = "{$this->uriAuth}?" . http_build_query($params);
             $result = json_decode(file_get_contents($surl), true);
             ['access_token' => $access_token] = $result;
         }
@@ -33,11 +44,11 @@ class SystemeProvider {
 
     public function callback(string $path, array $body = [])
     {
-        if(empty($body)) {
+        if (empty($body)) {
             $token = $this->getToken();
-            if(is_null($token)) return null;
+            if (is_null($token)) return null;
             $sapi = $this->uri . $path;
-        }else{
+        } else {
             $sapi = $this->uriAuth;
         }
 
